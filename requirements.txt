@@ -1,0 +1,6 @@
+PySide6>=6.10
+aiohttp>=3.10
+edge-tts>=7.0
+sounddevice>=0.5
+vosk>=0.3.45
+python-dotenv>=1.0
