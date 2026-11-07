@@ -64,13 +64,17 @@ def listen_test():
         listener.stop()
 
 
-def run():
+def run(forced_desktop=None, ask_again=False):
     if already_running():
         print(f"{config.NAME} is already running. `python main.py --quit` stops her.")
         sys.exit(0)
 
+    # the desktop has to be known before Qt starts, because it decides which Qt platform plugin loads
+    from src import desktop as desktops
+    desktop = desktops.choose(forced_desktop, ask_again)
+    print(f"[desktop] running as: {desktop.label}")
+
     from PySide6.QtCore import QTimer
-    from PySide6.QtGui import QCursor, QGuiApplication
     from src.overlay import Bridge, Overlay, Tray, make_app
 
     # Qt owns the main thread, so the asyncio stuff (server, LLM, voice) runs on a second one
@@ -106,13 +110,13 @@ def run():
         sys.exit(1)
 
     hub, assistant = backend["hub"], backend["assistant"]
-    app = make_app()
+    app = make_app(desktop)
     bridge = Bridge()
-    overlay = Overlay(bridge)
+    overlay = Overlay(bridge, desktop)
 
     # messages from the page that need the Qt thread go through the bridge
     hub.on("drag", lambda m: bridge.drag.emit(m.get("phase", "end"), int(m.get("dx", 0)), int(m.get("dy", 0))))
-    hub.on("menu", lambda _: bridge.menu.emit())
+    hub.on("menu", lambda m: bridge.menu.emit(int(m.get("x", 0)), int(m.get("y", 0))))
     hub.on("quit", lambda _: bridge.quit_.emit())
     bridge.quit_.connect(app.quit)
 
@@ -129,17 +133,17 @@ def run():
         last = [9.0, 9.0]
 
         def send_cursor():
-            screen = QGuiApplication.primaryScreen().geometry()
-            pos, center = QCursor.pos(), overlay.geometry().center()
-            x = max(-1.0, min(1.0, (pos.x() - center.x()) / (screen.width() / 2)))
-            y = max(-1.0, min(1.0, (pos.y() - center.y()) / (screen.height() / 2)))
+            found = overlay.cursor_normalized()
+            if not found:
+                return
+            x, y = found
             if abs(x - last[0]) + abs(y - last[1]) > 0.02:     # ignore tiny wiggles
                 last[:] = [x, y]
                 asyncio.run_coroutine_threadsafe(hub.broadcast({"type": "cursor", "x": x, "y": y}), loop)
 
         timer = QTimer()
         timer.timeout.connect(send_cursor)
-        timer.start(config.CURSOR_POLL_MS)
+        timer.start(overlay.cursor_poll_ms)
         timers.append(timer)    # without a reference Qt would garbage collect it
 
     def cleanup():
@@ -160,6 +164,10 @@ def main():
     ap.add_argument("--quit", action="store_true", help="quit a running instance")
     ap.add_argument("--check", action="store_true", help="show which API keys work and what models they can use")
     ap.add_argument("--mics", action="store_true", help="list microphones")
+    ap.add_argument("--desktop", choices=["xfce", "gnome", "hyprland", "windows", "x11"],
+                    help="skip the question and run as this desktop")
+    ap.add_argument("--choose-desktop", action="store_true", help="ask which desktop you use, even if she already knows")
+    ap.add_argument("--hypr-config", action="store_true", help="print Hyprland window rules, keybind and autostart lines")
     ap.add_argument("--listen-test", action="store_true", help="print what the mic hears")
     args = ap.parse_args()
 
@@ -174,10 +182,13 @@ def main():
         asyncio.run(check())
     elif args.mics:
         list_mics()
+    elif args.hypr_config:
+        from src.hyprland import config_snippets
+        print(config_snippets())
     elif args.listen_test:
         listen_test()
     else:
-        run()
+        run(args.desktop, args.choose_desktop)
 
 
 if __name__ == "__main__":

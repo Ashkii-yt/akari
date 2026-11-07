@@ -17,8 +17,9 @@ mic -> Vosk (offline wake word) -> Groq Whisper (optional, better accuracy)
 ## Setup
 
 ```bash
-./setup.sh          # apt packages, venv, pip install, downloads the wake-word model
+./setup.sh          # system packages (apt/pacman/dnf), venv, pip install, wake-word model
 ```
+On Windows run `setup.ps1` instead (and `winget install mpv` for her voice).
 (`PYTHON=python3.14 ./setup.sh` if you want a specific Python. 3.10 or newer works.)
 
 Then:
@@ -31,7 +32,9 @@ Then:
    - `OPENROUTER_API_KEY`: only works while your balance is above $0. Below that it answers 402 even for `:free` models.
    - `OLLAMA_MODEL`: optional unlimited local fallback (`ollama pull llama3.2`).
 3. `venv/bin/python main.py --check` shows which keys work and which model names they can see.
-4. `venv/bin/python main.py`
+4. `venv/bin/python main.py`. The first time she asks which desktop you use (XFCE, GNOME, Hyprland, Windows or
+   other X11) with the detected one as the default. She remembers the answer, and asks again if you log into
+   a different session. `--desktop hyprland` skips the question, `--choose-desktop` forces it.
 
 ## Using her
 
@@ -44,6 +47,23 @@ Then:
 For a global hotkey, add a keyboard shortcut (Settings > Keyboard > Application Shortcuts) that runs
 `/path/to/venv/bin/python /path/to/main.py --talk`. `--stop` and `--quit` work the same way.
 `./install-autostart.sh` makes her start when you log in.
+
+## Desktops
+
+| Desktop | How she stays on top and out of the taskbar |
+|---|---|
+| XFCE / other X11 | Qt window hints, plus `wmctrl` for the panel |
+| GNOME | Runs through XWayland (`GNOME_QT_PLATFORM` in `src/config.py`), since GNOME ignores always-on-top from Wayland apps. The tray icon needs the AppIndicator extension. |
+| Hyprland | Native Wayland. Apps can't place themselves there, so she floats, pins, moves and drags her own window through Hyprland's IPC socket, and reads the cursor from it for the eye-following. |
+| Windows | Plain Qt, the tool-window flag hides the taskbar button |
+
+Hyprland notes:
+- It works without any config. `python main.py --hypr-config` prints permanent window rules, an autostart line
+  and a `--talk` keybind for your Hyprland version (hyprlang old and new, and Lua).
+- If Waybar's taskbar module lists her, add `"akari"` to its `ignore-list`.
+- The tray icon needs a bar that supports StatusNotifier (Waybar's `tray` module does). Right-clicking her always works.
+- If native Wayland misbehaves, set `HYPRLAND_QT_PLATFORM = "xcb"` in `src/config.py` to run her through XWayland.
+- Autostart: `./install-autostart.sh` prints the `exec-once` line instead of writing an autostart file.
 
 ## Tuning
 
@@ -77,4 +97,5 @@ renderer Chromium picked and how much work each frame costs.
 
 - The transparent area around her still catches clicks, because the window is a rectangle. Shrink `WINDOW_W` / `WINDOW_H` if it bugs you.
 - The mouth flaps while she talks, it isn't real lip-sync.
-- three.js and three-vrm are loaded from a CDN, so the very first launch needs internet.
+- three.js and three-vrm are loaded from a CDN, so the very first launch needs internet.  
+- On hyprland the options on rightclick are blacked out.

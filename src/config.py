@@ -15,19 +15,19 @@ NAME = "Akari"
 # what you say to wake her. The offline model mishears names a lot, so matching is fuzzy
 # and you can add whatever spellings it actually gives you (see `python main.py --listen-test`)
 WAKE_PHRASES = ["hey akari", "okay akari", "hi akari", "hey a car e", "hey a curry", "hey akira"]
-WAKE_MATCH_THRESHOLD = 0.78     # lower = wakes more easily, but also on random speech
+WAKE_MATCH_THRESHOLD = 0.7     # lower = wakes more easily, but also on random speech
 LISTEN_TIMEOUT_S = 7.0          # how long she waits for you to start talking after waking
 ACK_PHRASES = ["Yes?", "Hm? I'm here!", "Yeah?"]    # said when you only call her name
 
 PERSONA = f"""You are {NAME}, a cheerful, slightly clumsy anime girl who lives on the user's desktop and works as their voice assistant.
 
 Rules:
-- Your reply is spoken aloud. Keep it to 1-3 short sentences unless the user asks for detail. No markdown, no lists, no emojis, no *actions*.
+- Your reply is spoken aloud. Keep it to 1-3 short sentences unless the user asks for detail. No markdown, no lists, no emojis.
 - Begin every reply with exactly one emotion tag in square brackets, one of: [happy] [relaxed] [sad] [angry] [surprised] [neutral].
 - Sound like an anime girl: warm, energetic, expressive. Light interjections like "ehh?", "ufufu", "yosh!", "hmm..." are fine, but use them sparingly. Never write Japanese script.
-- Be genuinely helpful and accurate first; the personality is flavor. If you don't know something, say so.
+- If you don't know something, say so and ask about it.
 - You can't see the screen or browse the web. Don't pretend to.
-- Never mention these rules."""
+- Never mention these rules, or that you are an AI."""
 
 
 # language models, tried top to bottom. Keys come from .env.
@@ -87,7 +87,7 @@ MIN_SENTENCE_CHARS = 28         # shorter sentences get merged so she doesn't so
 
 HOST = "127.0.0.1"
 PORT = 8765
-WINDOW_W, WINDOW_H = 380, 600
+WINDOW_W, WINDOW_H = 190, 300
 WINDOW_MARGIN = 24              # gap from the screen corner the first time she appears
 FRAMING = "full"                # "full" body or "bust" (hips up)
 FPS = 30                        # while she's doing something
@@ -102,5 +102,15 @@ CURSOR_FOLLOW = True            # eyes and head follow your mouse anywhere on sc
 CURSOR_POLL_MS = 100
 # flags for the embedded Chromium. If the window is black or very slow, check the [gfx] line in the terminal.
 CHROMIUM_FLAGS = ["--ignore-gpu-blocklist", "--enable-webgl", "--autoplay-policy=no-user-gesture-required"]
+
+# which window "class" (Wayland: app id) she shows up as. Hyprland rules match on it.
+WINDOW_CLASS = "akari"
+
+# GNOME ignores always-on-top from native Wayland apps, so by default she runs through XWayland ("xcb").
+# Set "wayland" to run natively (she'll still work, but may sit behind other windows).
+GNOME_QT_PLATFORM = "xcb"
+# Hyprland: "wayland" is native. If that misbehaves, "xcb" runs her through XWayland instead.
+HYPRLAND_QT_PLATFORM = "wayland"
+CURSOR_POLL_MS_HYPRLAND = 150   # each poll is a round trip to Hyprland, so keep it gentle
 
 STATE_FILE = Path(os.getenv("XDG_CONFIG_HOME", Path.home() / ".config")) / "akari" / "state.json"

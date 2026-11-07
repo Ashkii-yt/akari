@@ -326,10 +326,16 @@ canvas.addEventListener("pointerup", () => {
     poke();
   }
 });
+canvas.addEventListener("pointercancel", () => {
+  if (!down) return;
+  down = null;
+  canvas.style.cursor = "grab";
+  send({ type: "drag", phase: "end" });
+});
 canvas.addEventListener("dblclick", () => send({ type: "talk" }));
 canvas.addEventListener("contextmenu", (e) => {
   e.preventDefault();
-  send({ type: "menu" });
+  send({ type: "menu", x: Math.round(e.clientX), y: Math.round(e.clientY) });
 });
 
 await loadModel();
